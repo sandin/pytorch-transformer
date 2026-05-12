@@ -140,7 +140,12 @@ def get_or_build_tokenizer(config, ds, lang):
 
 def get_ds(config):
     # It only has the train split, so we divide it overselves
-    ds_raw = load_dataset(f"{config['datasource']}", f"{config['lang_src']}-{config['lang_tgt']}", split='train')
+    local_dataset_path = Path("dataset") / "train-00000-of-00001.parquet"
+    if local_dataset_path.exists():
+        print(f"Loading local dataset from {local_dataset_path}")
+        ds_raw = load_dataset("parquet", data_files=str(local_dataset_path), split='train')
+    else:
+        ds_raw = load_dataset(f"{config['datasource']}", f"{config['lang_src']}-{config['lang_tgt']}", split='train')
 
     # Build tokenizers
     tokenizer_src = get_or_build_tokenizer(config, ds_raw, config['lang_src'])
