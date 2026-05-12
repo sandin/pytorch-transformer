@@ -6,3 +6,5 @@ weights/
 
 wandb/
 dataset/
+vocab/html/
+.DS_Store
