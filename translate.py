@@ -2,7 +2,7 @@ from pathlib import Path
 from config import get_config, latest_weights_file_path 
 from model import build_transformer
 from tokenizers import Tokenizer
-from modelscope.msdatasets import MsDataset
+from datasets import load_dataset
 from dataset import BilingualDataset
 import torch
 import sys
@@ -25,7 +25,7 @@ def translate(sentence: str):
     label = ""
     if type(sentence) == int or sentence.isdigit():
         id = int(sentence)
-        ds = MsDataset.load(config['datasource'], subset_name=f"{config['lang_src']}-{config['lang_tgt']}", split="train")
+        ds = load_dataset(f"{config['datasource']}", f"{config['lang_src']}-{config['lang_tgt']}", split='all')
         ds = BilingualDataset(ds, tokenizer_src, tokenizer_tgt, config['lang_src'], config['lang_tgt'], config['seq_len'])
         sentence = ds[id]['src_text']
         label = ds[id]["tgt_text"]
