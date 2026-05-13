@@ -43,8 +43,6 @@ def render_html(source_path: Path, data: dict[str, Any]) -> str:
         "        <tr>"
         f"<td>{token_id}</td>"
         f"<td><code>{escape(token)}</code></td>"
-        f"<td><code>{escape(repr(token))}</code></td>"
-        f"<td>{'yes' if token in special_tokens else ''}</td>"
         "</tr>"
         for token, token_id in rows
     )
@@ -100,15 +98,19 @@ def render_html(source_path: Path, data: dict[str, Any]) -> str:
     .summary {{
       display: flex;
       flex-wrap: wrap;
-      gap: 12px;
-      margin: 16px 0;
+      gap: 10px;
+      margin: 12px 0 16px;
       color: var(--muted);
+      font-size: 12px;
     }}
     .summary span {{
-      padding: 6px 10px;
-      border: 1px solid var(--line);
+      padding: 3px 7px;
+      border: 1px solid color-mix(in srgb, var(--line) 65%, transparent);
       border-radius: 6px;
-      background: var(--panel);
+      background: color-mix(in srgb, var(--panel) 55%, transparent);
+    }}
+    #filter {{
+      margin-bottom: 5px;
     }}
     label {{
       display: block;
@@ -132,26 +134,34 @@ def render_html(source_path: Path, data: dict[str, Any]) -> str:
     }}
     table {{
       width: 100%;
+      table-layout: fixed;
       border-collapse: collapse;
+      font-size: 13px;
     }}
     th, td {{
-      padding: 8px 12px;
+      padding: 5px 10px;
       border-bottom: 1px solid var(--line);
-      text-align: left;
+      text-align: center;
       vertical-align: top;
+    }}
+    th {{
+      width: 50%;
     }}
     th {{
       position: sticky;
       top: 0;
       background: var(--head);
       color: var(--text);
-      font-size: 13px;
+      font-size: 12px;
       text-transform: uppercase;
     }}
     td:first-child {{
-      width: 96px;
+      width: 50%;
       color: var(--accent);
       font-variant-numeric: tabular-nums;
+    }}
+    td:nth-child(2) {{
+      width: 50%;
     }}
     code {{
       font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
@@ -163,23 +173,20 @@ def render_html(source_path: Path, data: dict[str, Any]) -> str:
 </head>
 <body>
   <main>
-    <h1>{escape(source_path.name)} vocabulary</h1>
+    <h1>Vocabulary</h1>
     <div class="summary">
       <span>{len(rows):,} tokens</span>
       <span>model: {escape(str(model_type))}</span>
       <span>unk token: {escape(str(unk_token))}</span>
       <span>{len(special_tokens):,} special tokens</span>
     </div>
-    <label for="filter">Filter tokens</label>
-    <input id="filter" type="search" placeholder="Type to filter by token, repr, id, or special flag">
+    <input id="filter" type="search" placeholder="Search token">
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
             <th>ID</th>
             <th>Token</th>
-            <th>Python repr</th>
-            <th>Special</th>
           </tr>
         </thead>
         <tbody>

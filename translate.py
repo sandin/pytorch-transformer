@@ -8,17 +8,33 @@ import torch
 import sys
 
 def translate(sentence: str):
-    # Define the device, tokenizers, and model
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # Define the device
+    device = "cuda" if torch.cuda.is_available() else "mps" if torch.has_mps or torch.backends.mps.is_available() else "cpu"
     print("Using device:", device)
+    if (device == 'cuda'):
+        print(f"Device name: {torch.cuda.get_device_name(device.index)}")
+        print(f"Device memory: {torch.cuda.get_device_properties(device.index).total_memory / 1024 ** 3} GB")
+    elif (device == 'mps'):
+        print(f"Device name: <mps>")
+    else:
+        print("NOTE: If you have a GPU, consider using it for training.")
+        print("      On a Windows machine with NVidia GPU, check this video: https://www.youtube.com/watch?v=GMSjDTU8Zlc")
+        print("      On a Mac machine, run: pip3 install --pre torch torchvision torchaudio torchtext --index-url https://download.pytorch.org/whl/nightly/cpu")
+    device = torch.device(device)
+
+    # tokenizers, and model
     config = get_config()
+    config['model_folder'] = 'weights'
+    config['tokenizer_file'] = './vocab/tokenizer_{0}.json'
     tokenizer_src = Tokenizer.from_file(str(Path(config['tokenizer_file'].format(config['lang_src']))))
     tokenizer_tgt = Tokenizer.from_file(str(Path(config['tokenizer_file'].format(config['lang_tgt']))))
     model = build_transformer(tokenizer_src.get_vocab_size(), tokenizer_tgt.get_vocab_size(), config["seq_len"], config['seq_len'], d_model=config['d_model']).to(device)
 
     # Load the pretrained weights
     model_filename = latest_weights_file_path(config)
-    state = torch.load(model_filename)
+    print(f"model_filename={model_filename}")
+    # This model was trained on CUDA and needs to be converted on the CPU before it can be loaded.
+    state = torch.load(model_filename, map_location="cpu") 
     model.load_state_dict(state['model_state_dict'])
 
     # if the sentence is a number use it as an index to the test set

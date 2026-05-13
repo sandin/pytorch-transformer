@@ -271,6 +271,7 @@ def train_model(config):
             'optimizer_state_dict': optimizer.state_dict(),
             'global_step': global_step
         }, model_filename)
+        batch_iterator.write(f"Saved model checkpoint to {model_filename}")
 
 
 if __name__ == '__main__':
