@@ -24,6 +24,11 @@ def translate(sentence: str):
 
     # tokenizers, and model
     config = get_config()
+    config['datasource'] = 'wmt19'
+    config['lang_src'] = 'en'
+    config['lang_tgt'] = 'zh'
+    config['seq_len'] = 64
+    config['tokenizer_type'] = 'BPE'
     config['model_folder'] = 'weights'
     config['tokenizer_file'] = './vocab/tokenizer_{0}.json'
     tokenizer_src = Tokenizer.from_file(str(Path(config['tokenizer_file'].format(config['lang_src']))))
