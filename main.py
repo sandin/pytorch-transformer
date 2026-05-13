@@ -7,8 +7,9 @@ def main():
     cfg['datasource'] = 'wmt19'
     cfg['lang_src'] = 'en'
     cfg['lang_tgt'] = 'zh'
-    cfg['model_folder'] = 'weights'
+    # cfg['seq_len'] = 64
     cfg['tokenizer_type'] = 'BPE'
+    cfg['model_folder'] = 'weights'
     cfg['tokenizer_file'] = './vocab/tokenizer_{0}.json'
     cfg['batch_size'] = 24
     cfg['num_epochs'] = 100
