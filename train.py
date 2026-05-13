@@ -11,6 +11,7 @@ from torch.optim.lr_scheduler import LambdaLR
 import warnings
 from tqdm import tqdm
 import os
+import time
 from pathlib import Path
 
 # Huggingface datasets and tokenizers
@@ -257,6 +258,8 @@ def train_model(config):
 
     loss_fn = nn.CrossEntropyLoss(ignore_index=tokenizer_src.token_to_id('[PAD]'), label_smoothing=0.1).to(device)
 
+    training_start_time = time.perf_counter()
+    batch_iterator = None
     for epoch in range(initial_epoch, config['num_epochs']):
         torch.cuda.empty_cache()
         model.train()
@@ -305,6 +308,12 @@ def train_model(config):
             'global_step': global_step
         }, model_filename)
         batch_iterator.write(f"Saved model checkpoint to {model_filename}")
+
+    training_hours = (time.perf_counter() - training_start_time) / 3600
+    if batch_iterator is not None:
+        batch_iterator.write(f"Total training time: {training_hours:.2f} hours")
+    else:
+        print(f"Total training time: {training_hours:.2f} hours")
 
 
 if __name__ == '__main__':
