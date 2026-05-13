@@ -16,9 +16,10 @@ from pathlib import Path
 # Huggingface datasets and tokenizers
 from datasets import load_dataset
 from tokenizers import Tokenizer
-from tokenizers.models import WordLevel
-from tokenizers.trainers import WordLevelTrainer
-from tokenizers.pre_tokenizers import Whitespace
+from tokenizers.decoders import ByteLevel as ByteLevelDecoder
+from tokenizers.models import BPE, WordLevel
+from tokenizers.pre_tokenizers import ByteLevel, Whitespace
+from tokenizers.trainers import BpeTrainer, WordLevelTrainer
 
 import torchmetrics
 from torch.utils.tensorboard import SummaryWriter
@@ -125,13 +126,44 @@ def get_all_sentences(ds, lang):
     for item in ds:
         yield item['translation'][lang]
 
-def get_or_build_tokenizer(config, ds, lang):
-    tokenizer_path = Path(config['tokenizer_file'].format(lang))
-    if not Path.exists(tokenizer_path):
-        # Most code taken from: https://huggingface.co/docs/tokenizers/quicktour
+SPECIAL_TOKENS = ["[UNK]", "[PAD]", "[SOS]", "[EOS]"]
+
+def get_tokenizer_type(config):
+    return config.get("tokenizer_type", "WordLevel")
+
+def get_tokenizer_path(config, lang):
+    return Path(config['tokenizer_file'].format(lang))
+
+def build_tokenizer(config):
+    tokenizer_type = get_tokenizer_type(config).lower()
+    min_frequency = config.get("tokenizer_min_frequency", 2)
+
+    if tokenizer_type in ("wordlevel", "word_level"):
         tokenizer = Tokenizer(WordLevel(unk_token="[UNK]"))
         tokenizer.pre_tokenizer = Whitespace()
-        trainer = WordLevelTrainer(special_tokens=["[UNK]", "[PAD]", "[SOS]", "[EOS]"], min_frequency=2)
+        trainer = WordLevelTrainer(special_tokens=SPECIAL_TOKENS, min_frequency=min_frequency)
+        return tokenizer, trainer
+
+    if tokenizer_type in ("bpe", "subword", "subwordbpe", "multilingualbpe"):
+        tokenizer = Tokenizer(BPE(unk_token="[UNK]"))
+        tokenizer.pre_tokenizer = ByteLevel(add_prefix_space=False)
+        tokenizer.decoder = ByteLevelDecoder()
+        trainer = BpeTrainer(
+            special_tokens=SPECIAL_TOKENS,
+            min_frequency=min_frequency,
+            initial_alphabet=ByteLevel.alphabet(),
+            vocab_size=config.get("tokenizer_vocab_size", 30000),
+        )
+        return tokenizer, trainer
+
+    raise ValueError(f"Unsupported tokenizer_type: {get_tokenizer_type(config)}. Use 'WordLevel' or 'BPE'.")
+
+def get_or_build_tokenizer(config, ds, lang):
+    tokenizer_path = get_tokenizer_path(config, lang)
+    if not Path.exists(tokenizer_path):
+        # Most code taken from: https://huggingface.co/docs/tokenizers/quicktour
+        tokenizer_path.parent.mkdir(parents=True, exist_ok=True)
+        tokenizer, trainer = build_tokenizer(config)
         tokenizer.train_from_iterator(get_all_sentences(ds, lang), trainer=trainer)
         tokenizer.save(str(tokenizer_path))
     else:
@@ -140,10 +172,11 @@ def get_or_build_tokenizer(config, ds, lang):
 
 def get_ds(config):
     # It only has the train split, so we divide it overselves
-    local_dataset_path = Path("dataset") / "train-00000-of-00001.parquet"
-    if local_dataset_path.exists():
-        print(f"Loading local dataset from {local_dataset_path}")
-        ds_raw = load_dataset("parquet", data_files=str(local_dataset_path), split='train')
+    local_dataset_dir = Path("dataset") / config['datasource']
+    local_dataset_paths = sorted(local_dataset_dir.glob("train-*.parquet"))
+    if local_dataset_paths:
+        print(f"Loading local dataset from {local_dataset_dir}: {len(local_dataset_paths)} parquet file(s)")
+        ds_raw = load_dataset("parquet", data_files=[str(path) for path in local_dataset_paths], split='train')
     else:
         ds_raw = load_dataset(f"{config['datasource']}", f"{config['lang_src']}-{config['lang_tgt']}", split='train')
 
@@ -198,7 +231,7 @@ def train_model(config):
     device = torch.device(device)
 
     # Make sure the weights folder exists
-    Path(f"{config['datasource']}_{config['model_folder']}").mkdir(parents=True, exist_ok=True)
+    Path(config['model_folder'], config['datasource']).mkdir(parents=True, exist_ok=True)
 
     train_dataloader, val_dataloader, tokenizer_src, tokenizer_tgt = get_ds(config)
     model = get_model(config, tokenizer_src.get_vocab_size(), tokenizer_tgt.get_vocab_size()).to(device)

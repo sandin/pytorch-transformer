@@ -9,6 +9,8 @@ from html import escape
 from pathlib import Path
 from typing import Any
 
+from tokenizers import Tokenizer
+
 
 def load_vocab(data: dict[str, Any]) -> dict[str, int]:
     """Return the vocabulary map from common tokenizer JSON layouts."""
@@ -34,7 +36,34 @@ def load_special_tokens(data: dict[str, Any]) -> set[str]:
     return special_tokens
 
 
-def render_html(source_path: Path, data: dict[str, Any]) -> str:
+def readable_token(tokenizer: Tokenizer, token_id: int) -> str:
+    """Return the tokenizer-decoded form of a single vocabulary entry."""
+    try:
+        decoded = tokenizer.decode([token_id], skip_special_tokens=False)
+    except Exception:
+        return ""
+    return decoded if decoded else "(empty)"
+
+
+def display_text(value: str) -> str:
+    """Make control characters visible before placing text in HTML."""
+    visible_chars: list[str] = []
+    for char in value:
+        codepoint = ord(char)
+        if char == "\n":
+            visible_chars.append(r"\n")
+        elif char == "\r":
+            visible_chars.append(r"\r")
+        elif char == "\t":
+            visible_chars.append(r"\t")
+        elif codepoint < 32 or codepoint == 127:
+            visible_chars.append(f"\\x{codepoint:02x}")
+        else:
+            visible_chars.append(char)
+    return "".join(visible_chars)
+
+
+def render_html(source_path: Path, data: dict[str, Any], tokenizer: Tokenizer) -> str:
     vocab = load_vocab(data)
     special_tokens = load_special_tokens(data)
     rows = sorted(vocab.items(), key=lambda item: (item[1], item[0]))
@@ -42,7 +71,8 @@ def render_html(source_path: Path, data: dict[str, Any]) -> str:
     table_rows = "\n".join(
         "        <tr>"
         f"<td>{token_id}</td>"
-        f"<td><code>{escape(token)}</code></td>"
+        f"<td><code>{escape(display_text(token))}</code></td>"
+        f"<td><code>{escape(display_text(readable_token(tokenizer, token_id)))}</code></td>"
         "</tr>"
         for token, token_id in rows
     )
@@ -141,11 +171,8 @@ def render_html(source_path: Path, data: dict[str, Any]) -> str:
     th, td {{
       padding: 5px 10px;
       border-bottom: 1px solid var(--line);
-      text-align: center;
+      text-align: left;
       vertical-align: top;
-    }}
-    th {{
-      width: 50%;
     }}
     th {{
       position: sticky;
@@ -156,12 +183,16 @@ def render_html(source_path: Path, data: dict[str, Any]) -> str:
       text-transform: uppercase;
     }}
     td:first-child {{
-      width: 50%;
+      width: 14%;
+      text-align: right;
       color: var(--accent);
       font-variant-numeric: tabular-nums;
     }}
     td:nth-child(2) {{
-      width: 50%;
+      width: 43%;
+    }}
+    td:nth-child(3) {{
+      width: 43%;
     }}
     code {{
       font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
@@ -187,6 +218,7 @@ def render_html(source_path: Path, data: dict[str, Any]) -> str:
           <tr>
             <th>ID</th>
             <th>Token</th>
+            <th>Readable token</th>
           </tr>
         </thead>
         <tbody>
@@ -212,8 +244,9 @@ def render_html(source_path: Path, data: dict[str, Any]) -> str:
 
 def export_file(source_path: Path, output_dir: Path) -> Path:
     data = json.loads(source_path.read_text(encoding="utf-8"))
+    tokenizer = Tokenizer.from_file(str(source_path))
     output_path = output_dir / f"{source_path.stem}.html"
-    output_path.write_text(render_html(source_path, data), encoding="utf-8")
+    output_path.write_text(render_html(source_path, data, tokenizer), encoding="utf-8")
     return output_path
 
 

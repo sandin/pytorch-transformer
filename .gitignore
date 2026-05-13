@@ -3,6 +3,7 @@ __pycache__
 *.json
 runs/
 weights/
+*_weights/
 
 wandb/
 dataset/
