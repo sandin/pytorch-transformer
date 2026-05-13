@@ -23,6 +23,13 @@ uv sync
 uv run python main.py
 ```
 
+use tensorboard to minitor the training loss:
+```bash
+uv run tensorboard --logdir runs/tmodel
+```
+then open [http://localhost:6006/](http://localhost:6006/)
+
+
 All weight files will be saved to `<config.model_folder>/<config.datasource>/<config.model_basename><epoch>.pt`
 
 
