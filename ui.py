@@ -1,14 +1,21 @@
+import random
 from pathlib import Path
 from html import escape
 
 import gradio as gr
 
-from config import DEFAULT_CONFIG_PATH, get_config
+from config import DEFAULT_CONFIG_PATH, get_config, load_translation_dataset
+from dataset import get_sentence
 from translate import Translator
 
 
 DEFAULT_TITLE = "Transformer Translator"
 DEFAULT_DESCRIPTION = "A machine translation chatbot built with the Transformer architecture."
+DEFAULT_EXAMPLES = [
+    ["Who are you?"],
+    ["Work you've done here is outstanding."],
+]
+EXAMPLE_COUNT = 3
 TRANSLATORS = {}
 
 
@@ -47,6 +54,18 @@ def get_language_hint(config_path: str):
     )
 
 
+def get_random_examples(config_path: str, count: int = EXAMPLE_COUNT):
+    try:
+        config = get_config(Path(config_path or DEFAULT_CONFIG_PATH))
+        ds = load_translation_dataset(config, split="all")
+        sample_count = min(count, len(ds))
+        indexes = random.sample(range(len(ds)), sample_count)
+        return [[get_sentence(ds[index], config["lang_src"])] for index in indexes]
+    except Exception as exc:
+        print(f"Failed to load random examples: {exc}")
+        return DEFAULT_EXAMPLES
+
+
 def get_translator(config_path: str):
     config = str(Path(config_path or DEFAULT_CONFIG_PATH))
     if config not in TRANSLATORS:
@@ -77,6 +96,7 @@ def respond(message: str, history, config_path: str):
 def build_ui():
     config_files = list_config_files()
     selected_config = default_config_path(config_files)
+    examples = get_random_examples(selected_config)
 
     with gr.Blocks(title=DEFAULT_TITLE) as demo:
         config_input = gr.Dropdown(
@@ -107,15 +127,11 @@ def build_ui():
                 placeholder="Enter a sentence to translate, then press Enter",
                 show_label=False,
                 container=True,
-                lines=2,
-                max_lines=5,
+                lines=1,
+                max_lines=1,
                 scale=7,
-                submit_btn="Send",
             ),
-            examples=[
-                ["Who are you?"],
-                ["Work you've done here is outstanding."],
-            ],
+            examples=examples,
         )
 
     return demo
