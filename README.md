@@ -8,6 +8,10 @@ YouTube video with full step-by-step implementation: https://www.youtube.com/wat
 
 To avoid network issues, you can download dataset file from [huggingface - opus_books](https://huggingface.co/datasets/Helsinki-NLP/opus_books/resolve/main/en-it/train-00000-of-00001.parquet?download=true) to your local file: `dataset/train-00000-of-00001.parquet (5.73 MB)` .
 
+Training datasets:
+* `opus_books (en-it)`
+* `wmt19 (en-zh)` (default)
+
 
 ## Build
 
@@ -20,6 +24,7 @@ uv sync
 
 
 ```bash
+# use default config: wmt19.json
 uv run python main.py
 
 # or
@@ -40,9 +45,27 @@ All weight files will be saved to `<config.model_folder>/<config.datasource>/<co
 
 ```bash
 uv run python translate.py "Who are you?"
+# or
 uv run python translate.py "Who are you?" --config configs/opus_books.json
 
 #  PREDICTED: Chi siete ?  % 
+```
+
+Or you can translate with BLEU score:
+
+```bash
+uv run python translate.py 2001  # datasets index 
+```
+Output:
+```
+Device name: mps
+Loading Model: weights/wmt19/tmodel_87.pt
+Loading local dataset from dataset/wmt19: 2 parquet file(s)
+        ID: 2001
+    SOURCE: Work you've done here is outstanding.
+    TARGET: 你的工作完成的很出色。
+ PREDICTED: 你的工作 完成的 很 出色 。  
+      BLEU: 100.00
 ```
 
 

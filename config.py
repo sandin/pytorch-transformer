@@ -35,6 +35,17 @@ def get_config(config_path=DEFAULT_CONFIG_PATH):
 
     return config
 
+def load_translation_dataset(config, split="train"):
+    from datasets import load_dataset
+
+    local_dataset_dir = Path("dataset") / config['datasource']
+    local_dataset_paths = sorted(local_dataset_dir.glob("train-*.parquet"))
+    if local_dataset_paths:
+        print(f"Loading local dataset from {local_dataset_dir}: {len(local_dataset_paths)} parquet file(s)")
+        return load_dataset("parquet", data_files=[str(path) for path in local_dataset_paths], split='train')
+
+    return load_dataset(f"{config['datasource']}", f"{config['lang_src']}-{config['lang_tgt']}", split=split)
+
 def get_weights_file_path(config, epoch: str):
     model_folder = Path(config['model_folder']) / config['datasource']
     model_filename = f"{config['model_basename']}{epoch}.pt"

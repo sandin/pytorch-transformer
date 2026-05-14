@@ -1,6 +1,6 @@
 from model import build_transformer
 from dataset import BilingualDataset, causal_mask
-from config import get_config, get_weights_file_path, latest_weights_file_path
+from config import get_config, get_weights_file_path, latest_weights_file_path, load_translation_dataset
 
 #import torchtext.datasets as datasets
 import torch
@@ -14,8 +14,7 @@ import os
 import time
 from pathlib import Path
 
-# Huggingface datasets and tokenizers
-from datasets import load_dataset
+# Huggingface tokenizers
 from tokenizers import Tokenizer
 from tokenizers.decoders import ByteLevel as ByteLevelDecoder
 from tokenizers.models import BPE, WordLevel
@@ -173,13 +172,7 @@ def get_or_build_tokenizer(config, ds, lang):
 
 def get_ds(config):
     # It only has the train split, so we divide it overselves
-    local_dataset_dir = Path("dataset") / config['datasource']
-    local_dataset_paths = sorted(local_dataset_dir.glob("train-*.parquet"))
-    if local_dataset_paths:
-        print(f"Loading local dataset from {local_dataset_dir}: {len(local_dataset_paths)} parquet file(s)")
-        ds_raw = load_dataset("parquet", data_files=[str(path) for path in local_dataset_paths], split='train')
-    else:
-        ds_raw = load_dataset(f"{config['datasource']}", f"{config['lang_src']}-{config['lang_tgt']}", split='train')
+    ds_raw = load_translation_dataset(config, split='train')
 
     # Build tokenizers
     tokenizer_src = get_or_build_tokenizer(config, ds_raw, config['lang_src'])
@@ -218,13 +211,12 @@ def get_model(config, vocab_src_len, vocab_tgt_len):
 
 def train_model(config):
     # Define the device
-    device = "cuda" if torch.cuda.is_available() else "mps" if torch.has_mps or torch.backends.mps.is_available() else "cpu"
-    print("Using device:", device)
+    device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
     if (device == 'cuda'):
         print(f"Device name: {torch.cuda.get_device_name(device.index)}")
         print(f"Device memory: {torch.cuda.get_device_properties(device.index).total_memory / 1024 ** 3} GB")
     elif (device == 'mps'):
-        print(f"Device name: <mps>")
+        print(f"Device name: mps")
     else:
         print("NOTE: If you have a GPU, consider using it for training.")
         print("      On a Windows machine with NVidia GPU, check this video: https://www.youtube.com/watch?v=GMSjDTU8Zlc")

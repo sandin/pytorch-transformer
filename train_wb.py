@@ -1,6 +1,6 @@
 from model import build_transformer
 from dataset import BilingualDataset, causal_mask
-from config import get_config, get_weights_file_path
+from config import get_config, get_weights_file_path, load_translation_dataset
 
 import torchtext.datasets as datasets
 import torch
@@ -13,8 +13,7 @@ from tqdm import tqdm
 import os
 from pathlib import Path
 
-# Huggingface datasets and tokenizers
-from datasets import load_dataset
+# Huggingface tokenizers
 from tokenizers import Tokenizer
 from tokenizers.models import WordLevel
 from tokenizers.trainers import WordLevelTrainer
@@ -138,7 +137,7 @@ def get_or_build_tokenizer(config, ds, lang):
 
 def get_ds(config):
     # It only has the train split, so we divide it overselves
-    ds_raw = load_dataset('opus_books', f"{config['lang_src']}-{config['lang_tgt']}", split='train')
+    ds_raw = load_translation_dataset(config, split='train')
 
     # Build tokenizers
     tokenizer_src = get_or_build_tokenizer(config, ds_raw, config['lang_src'])

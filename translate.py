@@ -1,23 +1,21 @@
 import argparse
 from pathlib import Path
-from config import DEFAULT_CONFIG_PATH, get_config, latest_weights_file_path
+from config import DEFAULT_CONFIG_PATH, get_config, latest_weights_file_path, load_translation_dataset
 
 def translate(sentence: str, config_path=DEFAULT_CONFIG_PATH):
     import torch
-    from datasets import load_dataset
     from tokenizers import Tokenizer
 
     from dataset import BilingualDataset
     from model import build_transformer
 
     # Define the device
-    device = "cuda" if torch.cuda.is_available() else "mps" if torch.has_mps or torch.backends.mps.is_available() else "cpu"
-    print("Using device:", device)
+    device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
     if (device == 'cuda'):
         print(f"Device name: {torch.cuda.get_device_name(device.index)}")
         print(f"Device memory: {torch.cuda.get_device_properties(device.index).total_memory / 1024 ** 3} GB")
     elif (device == 'mps'):
-        print(f"Device name: <mps>")
+        print(f"Device name: mps")
     else:
         print("NOTE: If you have a GPU, consider using it for training.")
         print("      On a Windows machine with NVidia GPU, check this video: https://www.youtube.com/watch?v=GMSjDTU8Zlc")
@@ -32,7 +30,7 @@ def translate(sentence: str, config_path=DEFAULT_CONFIG_PATH):
 
     # Load the pretrained weights
     model_filename = latest_weights_file_path(config)
-    print(f"model_filename={model_filename}")
+    print(f"Loading Model: {model_filename}")
     # This model was trained on CUDA and needs to be converted on the CPU before it can be loaded.
     state = torch.load(model_filename, map_location="cpu") 
     model.load_state_dict(state['model_state_dict'])
@@ -41,7 +39,7 @@ def translate(sentence: str, config_path=DEFAULT_CONFIG_PATH):
     label = ""
     if type(sentence) == int or sentence.isdigit():
         id = int(sentence)
-        ds = load_dataset(f"{config['datasource']}", f"{config['lang_src']}-{config['lang_tgt']}", split='all')
+        ds = load_translation_dataset(config, split='all')
         ds = BilingualDataset(ds, tokenizer_src, tokenizer_tgt, config['lang_src'], config['lang_tgt'], config['seq_len'])
         sentence = ds[id]['src_text']
         label = ds[id]["tgt_text"]
