@@ -1,5 +1,5 @@
 from model import build_transformer
-from dataset import BilingualDataset, causal_mask
+from dataset import BilingualDataset, causal_mask, get_sentence
 from config import get_config, get_weights_file_path, latest_weights_file_path, load_translation_dataset
 
 #import torchtext.datasets as datasets
@@ -16,9 +16,11 @@ from pathlib import Path
 
 # Huggingface tokenizers
 from tokenizers import Tokenizer
+from tokenizers import Regex
 from tokenizers.decoders import ByteLevel as ByteLevelDecoder
+from tokenizers.decoders import Fuse
 from tokenizers.models import BPE, WordLevel
-from tokenizers.pre_tokenizers import ByteLevel, Whitespace
+from tokenizers.pre_tokenizers import ByteLevel, Split, Whitespace
 from tokenizers.trainers import BpeTrainer, WordLevelTrainer
 
 import torchmetrics
@@ -122,9 +124,11 @@ def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, 
         writer.add_scalar('validation BLEU', bleu, global_step)
         writer.flush()
 
+
 def get_all_sentences(ds, lang):
     for item in ds:
-        yield item['translation'][lang]
+        yield get_sentence(item, lang)
+
 
 SPECIAL_TOKENS = ["[UNK]", "[PAD]", "[SOS]", "[EOS]"]
 
@@ -144,6 +148,16 @@ def build_tokenizer(config):
         trainer = WordLevelTrainer(special_tokens=SPECIAL_TOKENS, min_frequency=min_frequency)
         return tokenizer, trainer
 
+    if tokenizer_type in ("charlevel", "char_level", "char"):
+        tokenizer = Tokenizer(WordLevel(unk_token="[UNK]"))
+        tokenizer.pre_tokenizer = Split(Regex("."), behavior="isolated")
+        tokenizer.decoder = Fuse()
+        trainer = WordLevelTrainer(
+            special_tokens=SPECIAL_TOKENS,
+            min_frequency=config.get("tokenizer_min_frequency", 1),
+        )
+        return tokenizer, trainer
+
     if tokenizer_type in ("bpe", "subword", "subwordbpe", "multilingualbpe"):
         tokenizer = Tokenizer(BPE(unk_token="[UNK]"))
         tokenizer.pre_tokenizer = ByteLevel(add_prefix_space=False)
@@ -156,7 +170,7 @@ def build_tokenizer(config):
         )
         return tokenizer, trainer
 
-    raise ValueError(f"Unsupported tokenizer_type: {get_tokenizer_type(config)}. Use 'WordLevel' or 'BPE'.")
+    raise ValueError(f"Unsupported tokenizer_type: {get_tokenizer_type(config)}. Use 'WordLevel', 'BPE', or 'CharLevel'.")
 
 def get_or_build_tokenizer(config, ds, lang):
     tokenizer_path = get_tokenizer_path(config, lang)
@@ -178,6 +192,28 @@ def get_ds(config):
     tokenizer_src = get_or_build_tokenizer(config, ds_raw, config['lang_src'])
     tokenizer_tgt = get_or_build_tokenizer(config, ds_raw, config['lang_tgt'])
 
+    # Find the maximum length of each sentence in the source and target sentence
+    max_len_src = 0
+    max_len_tgt = 0
+    valid_indices = []
+
+    for idx, item in enumerate(ds_raw):
+        src_ids = tokenizer_src.encode(get_sentence(item, config['lang_src'])).ids
+        tgt_ids = tokenizer_tgt.encode(get_sentence(item, config['lang_tgt'])).ids
+        max_len_src = max(max_len_src, len(src_ids))
+        max_len_tgt = max(max_len_tgt, len(tgt_ids))
+        if len(src_ids) + 2 <= config['seq_len'] and len(tgt_ids) + 1 <= config['seq_len']:
+            valid_indices.append(idx)
+
+    print(f'Max length of source sentence: {max_len_src}')
+    print(f'Max length of target sentence: {max_len_tgt}')
+    if not valid_indices:
+        raise ValueError(f"No sentence pairs fit seq_len={config['seq_len']}")
+    if len(valid_indices) < len(ds_raw):
+        dropped_count = len(ds_raw) - len(valid_indices)
+        print(f"Filtered out {dropped_count} sentence pair(s) longer than seq_len={config['seq_len']}")
+        ds_raw = ds_raw.select(valid_indices)
+
     # Keep 90% for training, 10% for validation
     train_ds_size = int(0.9 * len(ds_raw))
     val_ds_size = len(ds_raw) - train_ds_size
@@ -185,19 +221,6 @@ def get_ds(config):
 
     train_ds = BilingualDataset(train_ds_raw, tokenizer_src, tokenizer_tgt, config['lang_src'], config['lang_tgt'], config['seq_len'])
     val_ds = BilingualDataset(val_ds_raw, tokenizer_src, tokenizer_tgt, config['lang_src'], config['lang_tgt'], config['seq_len'])
-
-    # Find the maximum length of each sentence in the source and target sentence
-    max_len_src = 0
-    max_len_tgt = 0
-
-    for item in ds_raw:
-        src_ids = tokenizer_src.encode(item['translation'][config['lang_src']]).ids
-        tgt_ids = tokenizer_tgt.encode(item['translation'][config['lang_tgt']]).ids
-        max_len_src = max(max_len_src, len(src_ids))
-        max_len_tgt = max(max_len_tgt, len(tgt_ids))
-
-    print(f'Max length of source sentence: {max_len_src}')
-    print(f'Max length of target sentence: {max_len_tgt}')
     
 
     train_dataloader = DataLoader(train_ds, batch_size=config['batch_size'], shuffle=True)

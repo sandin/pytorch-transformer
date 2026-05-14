@@ -1,0 +1,13 @@
+{
+  "datasource": "Chinese_modern_classical",
+  "lang_src": "modern",
+  "lang_tgt": "classical",
+  "seq_len": 128,
+  "tokenizer_type": "CharLevel",
+  "model_folder": "weights",
+  "tokenizer_file": "./vocab/Chinese_modern_classical/tokenizer_{0}.json",
+  "batch_size": 256,
+  "num_epochs": 30,
+  "preload": null,
+  "score_bleu": false
+}

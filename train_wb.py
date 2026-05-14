@@ -1,5 +1,5 @@
 from model import build_transformer
-from dataset import BilingualDataset, causal_mask
+from dataset import BilingualDataset, causal_mask, get_sentence
 from config import get_config, get_weights_file_path, load_translation_dataset
 
 import torchtext.datasets as datasets
@@ -15,9 +15,12 @@ from pathlib import Path
 
 # Huggingface tokenizers
 from tokenizers import Tokenizer
-from tokenizers.models import WordLevel
-from tokenizers.trainers import WordLevelTrainer
-from tokenizers.pre_tokenizers import Whitespace
+from tokenizers import Regex
+from tokenizers.decoders import ByteLevel as ByteLevelDecoder
+from tokenizers.decoders import Fuse
+from tokenizers.models import BPE, WordLevel
+from tokenizers.pre_tokenizers import ByteLevel, Split, Whitespace
+from tokenizers.trainers import BpeTrainer, WordLevelTrainer
 
 import wandb
 
@@ -122,13 +125,50 @@ def get_all_sentences(ds, lang):
     for item in ds:
         yield item['translation'][lang]
 
+SPECIAL_TOKENS = ["[UNK]", "[PAD]", "[SOS]", "[EOS]"]
+
+def get_tokenizer_type(config):
+    return config.get("tokenizer_type", "WordLevel")
+
+def build_tokenizer(config):
+    tokenizer_type = get_tokenizer_type(config).lower()
+    min_frequency = config.get("tokenizer_min_frequency", 2)
+
+    if tokenizer_type in ("wordlevel", "word_level"):
+        tokenizer = Tokenizer(WordLevel(unk_token="[UNK]"))
+        tokenizer.pre_tokenizer = Whitespace()
+        trainer = WordLevelTrainer(special_tokens=SPECIAL_TOKENS, min_frequency=min_frequency)
+        return tokenizer, trainer
+
+    if tokenizer_type in ("charlevel", "char_level", "char"):
+        tokenizer = Tokenizer(WordLevel(unk_token="[UNK]"))
+        tokenizer.pre_tokenizer = Split(Regex("."), behavior="isolated")
+        tokenizer.decoder = Fuse()
+        trainer = WordLevelTrainer(
+            special_tokens=SPECIAL_TOKENS,
+            min_frequency=config.get("tokenizer_min_frequency", 1),
+        )
+        return tokenizer, trainer
+
+    if tokenizer_type in ("bpe", "subword", "subwordbpe", "multilingualbpe"):
+        tokenizer = Tokenizer(BPE(unk_token="[UNK]"))
+        tokenizer.pre_tokenizer = ByteLevel(add_prefix_space=False)
+        tokenizer.decoder = ByteLevelDecoder()
+        trainer = BpeTrainer(
+            special_tokens=SPECIAL_TOKENS,
+            min_frequency=min_frequency,
+            initial_alphabet=ByteLevel.alphabet(),
+            vocab_size=config.get("tokenizer_vocab_size", 30000),
+        )
+        return tokenizer, trainer
+
+    raise ValueError(f"Unsupported tokenizer_type: {get_tokenizer_type(config)}. Use 'WordLevel', 'BPE', or 'CharLevel'.")
+
 def get_or_build_tokenizer(config, ds, lang):
     tokenizer_path = Path(config['tokenizer_file'].format(lang))
     if not Path.exists(tokenizer_path):
         # Most code taken from: https://huggingface.co/docs/tokenizers/quicktour
-        tokenizer = Tokenizer(WordLevel(unk_token="[UNK]"))
-        tokenizer.pre_tokenizer = Whitespace()
-        trainer = WordLevelTrainer(special_tokens=["[UNK]", "[PAD]", "[SOS]", "[EOS]"], min_frequency=2)
+        tokenizer, trainer = build_tokenizer(config)
         tokenizer.train_from_iterator(get_all_sentences(ds, lang), trainer=trainer)
         tokenizer.save(str(tokenizer_path))
     else:
@@ -156,8 +196,8 @@ def get_ds(config):
     max_len_tgt = 0
 
     for item in ds_raw:
-        src_ids = tokenizer_src.encode(item['translation'][config['lang_src']]).ids
-        tgt_ids = tokenizer_tgt.encode(item['translation'][config['lang_tgt']]).ids
+        src_ids = tokenizer_src.encode(get_sentence(item, config['lang_src'])).ids
+        tgt_ids = tokenizer_tgt.encode(get_sentence(item, config['lang_tgt'])).ids
         max_len_src = max(max_len_src, len(src_ids))
         max_len_tgt = max(max_len_tgt, len(tgt_ids))
 

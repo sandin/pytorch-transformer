@@ -6,11 +6,12 @@ YouTube video with full step-by-step implementation: https://www.youtube.com/wat
 
 ## Datasets
 
-To avoid network issues, you can download dataset file from [huggingface - opus_books](https://huggingface.co/datasets/Helsinki-NLP/opus_books/resolve/main/en-it/train-00000-of-00001.parquet?download=true) to your local file: `dataset/train-00000-of-00001.parquet (5.73 MB)` .
+To avoid network issues, you can download dataset file from [huggingface - opus_books](https://huggingface.co/datasets/Helsinki-NLP/opus_books/resolve/main/en-it/train-00000-of-00001.parquet?download=true) to your local file: `dataset/opus_books/train-00000-of-00001.parquet (5.73 MB)` .
 
 Training datasets:
-* `opus_books (en-it)`
-* `wmt19 (en-zh)` (default)
+* [opus_books](https://huggingface.co/datasets/Helsinki-NLP/opus_books) (en-it)
+* [wmt19](https://huggingface.co/datasets/wmt/wmt19) (en-zh) (default)
+* [Chinese_modern_classical](https://huggingface.co/datasets/xmj2002/Chinese_modern_classical)
 
 
 ## Build
