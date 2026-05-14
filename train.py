@@ -252,6 +252,7 @@ def train_model(config):
 
     training_start_time = time.perf_counter()
     batch_iterator = None
+    saved_weight_files = []
     for epoch in range(initial_epoch, config['num_epochs']):
         torch.cuda.empty_cache()
         model.train()
@@ -299,7 +300,13 @@ def train_model(config):
             'optimizer_state_dict': optimizer.state_dict(),
             'global_step': global_step
         }, model_filename)
+        saved_weight_files.append(Path(model_filename))
         batch_iterator.write(f"Saved model checkpoint to {model_filename}")
+        while len(saved_weight_files) > 3:
+            old_model_filename = saved_weight_files.pop(0)
+            if old_model_filename.exists():
+                old_model_filename.unlink()
+                batch_iterator.write(f"Deleted old model checkpoint {old_model_filename}")
 
     training_hours = (time.perf_counter() - training_start_time) / 3600
     if batch_iterator is not None:
