@@ -1,7 +1,10 @@
+import json
 from pathlib import Path
 
-def get_config():
-    return {
+DEFAULT_CONFIG_PATH = Path("configs/wmt19.json")
+
+def get_config(config_path=DEFAULT_CONFIG_PATH):
+    config = {
         "batch_size": 8,
         "num_epochs": 20,
         "lr": 10**-4,
@@ -17,6 +20,19 @@ def get_config():
         "tokenizer_file": "tokenizer_{0}.json",
         "experiment_name": "runs/tmodel"
     }
+
+    if config_path:
+        config_file = Path(config_path)
+        if config_file.exists():
+            with config_file.open("r", encoding="utf-8") as f:
+                file_config = json.load(f)
+            if not isinstance(file_config, dict):
+                raise ValueError(f"Config file must contain a JSON object: {config_file}")
+            config.update(file_config)
+        else:
+            raise FileNotFoundError(f"Config file not found: {config_file}")
+
+    return config
 
 def get_weights_file_path(config, epoch: str):
     model_folder = Path(config['model_folder']) / config['datasource']

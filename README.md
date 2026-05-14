@@ -21,6 +21,9 @@ uv sync
 
 ```bash
 uv run python main.py
+
+# or
+uv run python main.py --config configs/opus_books.json
 ```
 
 use tensorboard to minitor the training loss:
@@ -37,6 +40,7 @@ All weight files will be saved to `<config.model_folder>/<config.datasource>/<co
 
 ```bash
 uv run python translate.py "Who are you?"
+uv run python translate.py "Who are you?" --config configs/opus_books.json
 
 #  PREDICTED: Chi siete ?  % 
 ```

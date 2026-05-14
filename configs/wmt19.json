@@ -1,0 +1,12 @@
+{
+  "datasource": "wmt19",
+  "lang_src": "en",
+  "lang_tgt": "zh",
+  "seq_len": 64,
+  "tokenizer_type": "BPE",
+  "model_folder": "weights",
+  "tokenizer_file": "./vocab/wmt19/tokenizer_{0}.json",
+  "batch_size": 24,
+  "num_epochs": 100,
+  "preload": null
+}

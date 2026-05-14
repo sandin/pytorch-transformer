@@ -1,13 +1,15 @@
+import argparse
 from pathlib import Path
-from config import get_config, latest_weights_file_path 
-from model import build_transformer
-from tokenizers import Tokenizer
-from datasets import load_dataset
-from dataset import BilingualDataset
-import torch
-import sys
+from config import DEFAULT_CONFIG_PATH, get_config, latest_weights_file_path
 
-def translate(sentence: str):
+def translate(sentence: str, config_path=DEFAULT_CONFIG_PATH):
+    import torch
+    from datasets import load_dataset
+    from tokenizers import Tokenizer
+
+    from dataset import BilingualDataset
+    from model import build_transformer
+
     # Define the device
     device = "cuda" if torch.cuda.is_available() else "mps" if torch.has_mps or torch.backends.mps.is_available() else "cpu"
     print("Using device:", device)
@@ -23,14 +25,7 @@ def translate(sentence: str):
     device = torch.device(device)
 
     # tokenizers, and model
-    config = get_config()
-    config['datasource'] = 'wmt19'
-    config['lang_src'] = 'en'
-    config['lang_tgt'] = 'zh'
-    config['seq_len'] = 64
-    config['tokenizer_type'] = 'BPE'
-    config['model_folder'] = 'weights'
-    config['tokenizer_file'] = './vocab/tokenizer_{0}.json'
+    config = get_config(config_path)
     tokenizer_src = Tokenizer.from_file(str(Path(config['tokenizer_file'].format(config['lang_src']))))
     tokenizer_tgt = Tokenizer.from_file(str(Path(config['tokenizer_file'].format(config['lang_tgt']))))
     model = build_transformer(tokenizer_src.get_vocab_size(), tokenizer_tgt.get_vocab_size(), config["seq_len"], config['seq_len'], d_model=config['d_model']).to(device)
@@ -95,6 +90,14 @@ def translate(sentence: str):
 
     # convert ids to tokens
     return tokenizer_tgt.decode(decoder_input[0].tolist())
-    
-#read sentence from argument
-translate(sys.argv[1] if len(sys.argv) > 1 else "I am not a very good a student.")
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("sentence", nargs="?", default="I am not a very good a student.")
+    parser.add_argument("--config", default=str(DEFAULT_CONFIG_PATH), help="Path to config JSON file")
+    args = parser.parse_args()
+
+    translate(args.sentence, args.config)
+
+if __name__ == "__main__":
+    main()

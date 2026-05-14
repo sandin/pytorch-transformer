@@ -1,11 +1,12 @@
 __pycache__
 *.pt
 *.json
+!configs/*.json
 runs/
 weights/
 *_weights/
 
 wandb/
 dataset/
-vocab/html/
+vocab/
 .DS_Store

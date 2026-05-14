@@ -1,19 +1,16 @@
-from config import get_config
-from train import train_model
+import argparse
+
+from config import DEFAULT_CONFIG_PATH, get_config
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", default=str(DEFAULT_CONFIG_PATH), help="Path to config JSON file")
+    args = parser.parse_args()
+
+    from train import train_model
+
     print("Hello from pytorch-transformer!")
-    cfg = get_config()
-    cfg['datasource'] = 'wmt19'
-    cfg['lang_src'] = 'en'
-    cfg['lang_tgt'] = 'zh'
-    cfg['seq_len'] = 64
-    cfg['tokenizer_type'] = 'BPE'
-    cfg['model_folder'] = 'weights'
-    cfg['tokenizer_file'] = './vocab/tokenizer_{0}.json'
-    cfg['batch_size'] = 24
-    cfg['num_epochs'] = 100
-    cfg['preload'] = None
+    cfg = get_config(args.config)
 
     train_model(cfg)
 
