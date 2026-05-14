@@ -89,7 +89,19 @@ def translate(sentence: str, config_path=DEFAULT_CONFIG_PATH):
                 break
 
     # convert ids to tokens
-    return tokenizer_tgt.decode(decoder_input[0].tolist())
+    predicted_text = tokenizer_tgt.decode(decoder_input[0].tolist())
+    print()
+
+    if config.get("score_bleu", False):
+        if label != "":
+            from sacrebleu import sentence_bleu
+
+            bleu = sentence_bleu(predicted_text, [label])
+            print(f"{f'BLEU: ':>12}{bleu.score:.2f}")
+        else:
+            print("BLEU scoring is enabled, but no reference translation is available.")
+
+    return predicted_text
 
 def main():
     parser = argparse.ArgumentParser()

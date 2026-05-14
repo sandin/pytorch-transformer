@@ -7,6 +7,7 @@ requires-python = ">=3.12"
 dependencies = [
     "datasets>=4.8.5",
     "pandas>=3.0.3",
+    "sacrebleu>=2.6.0",
     "tensorboard>=2.20.0",
     "tokenizers>=0.23.1",
     "torchmetrics>=1.9.0",

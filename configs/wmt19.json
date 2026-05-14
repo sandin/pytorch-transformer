@@ -8,5 +8,6 @@
   "tokenizer_file": "./vocab/wmt19/tokenizer_{0}.json",
   "batch_size": 24,
   "num_epochs": 100,
-  "preload": null
+  "preload": null,
+  "score_bleu": true
 }

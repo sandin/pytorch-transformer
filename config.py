@@ -18,7 +18,8 @@ def get_config(config_path=DEFAULT_CONFIG_PATH):
         "preload": "latest",
         "tokenizer_type": "WordLevel",  # or "BPE"
         "tokenizer_file": "tokenizer_{0}.json",
-        "experiment_name": "runs/tmodel"
+        "experiment_name": "runs/tmodel",
+        "score_bleu": False
     }
 
     if config_path:
