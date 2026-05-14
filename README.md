@@ -70,6 +70,19 @@ Loading local dataset from dataset/wmt19: 2 parquet file(s)
 ```
 
 
+## GUI
+
+Start the Gradio GUI:
+
+```bash
+uv run python ui.py
+```
+
+Then open [http://127.0.0.1:7860](http://127.0.0.1:7860).
+
+The GUI lets you select a config file from `configs/`, shows the source and target languages, and translates each message with `translate.py`.
+
+
 ## Vocabulary HTML export
 
 The tokenizer files in `vocab/` can be exported to searchable HTML tables for easier inspection.
